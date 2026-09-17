@@ -419,6 +419,9 @@ body.is-admin #user-widget .uw-name span{display:none}
     <i class="ti ti-upload" style="font-size:13px"></i>
     <span id="usage-pill-text">0 / 3 free uploads used</span>
   </div>
+  <button id="signup-nav-btn" onclick="openAuthModal('register')" style="display:none;align-items:center;gap:6px;margin-left:auto;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:13px;font-weight:600;padding:8px 16px;border-radius:var(--r-md);cursor:pointer;transition:background .15s">
+    <i class="ti ti-user-plus" style="font-size:14px"></i> Sign Up
+  </button>
   <div id="user-widget" style="display:none;align-items:center;gap:10px;margin-left:auto">
     <div class="uw-name"><strong id="uw-email-display"></strong><span style="font-size:11px;color:rgba(255,255,255,.5)">Free account</span><span class="uw-admin-badge">Admin</span></div>
     <div class="uw-avatar" id="uw-avatar"></div>
@@ -4072,9 +4075,11 @@ function updateUsagePill(){
   const sess=getSession();
   const pill=document.getElementById('usage-pill');
   const widget=document.getElementById('user-widget');
+  const signupBtn=document.getElementById('signup-nav-btn');
   if(sess&&sess.email){
     pill.style.display='none';
     widget.style.display='flex';
+    signupBtn.style.display='none';
     document.getElementById('uw-email-display').textContent=sess.email;
     const initials=sess.email.charAt(0).toUpperCase();
     document.getElementById('uw-avatar').textContent=initials;
@@ -4086,6 +4091,10 @@ function updateUsagePill(){
     } else {
       pill.style.display='none';
     }
+    // Always available for logged-out visitors — even before their first
+    // upload — so people can register whenever they're ready, not only
+    // after the usage-pill appears.
+    signupBtn.style.display='flex';
     widget.style.display='none';
   }
 }
@@ -4182,12 +4191,16 @@ function authLogout(){
 /* ── Patch processFile to enforce limits ────────────────────────────── */
 const _origProcessFile=processFile;
 processFile=async function(file){
-  if(!canUpload()){
-    openAuthModal('register',true);
-    return;
+  if(canUpload()){
+    recordUpload();
+    updateUsagePill();
+  } else {
+    // Guest has used their 3 free uploads. Rather than a hard, forced
+    // registration wall, show a soft/dismissible reminder to consider
+    // donating (they can also sign up any time via the persistent Sign
+    // Up button) — and let the upload proceed either way.
+    openDonateModal(true);
   }
-  recordUpload();
-  updateUsagePill();
   await _origProcessFile(file);
 };
 
